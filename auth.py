@@ -2,6 +2,7 @@ import bcrypt
 from database import create_server_connection
 
 
+
 def hash_password(password):
     password_bytes = password.encode('utf-8')
     hashed = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
