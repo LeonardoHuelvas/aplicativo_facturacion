@@ -48,7 +48,7 @@ def insert_clientes(nombre, direccion, telefono, email, fecha_registro, connecti
 def get_facturas(connection):
     try:
         cursor = connection.cursor()
-        cursor.execute("SELECT id_cliente FROM facturas")   
+        cursor.execute("SELECT cliente_id, factura_id FROM facturas")   
         facturas = cursor.fetchall()  # Obtiene todas las filas de la consulta
         return facturas
     except Error as e:
@@ -183,7 +183,16 @@ def calcular_total_factura(cliente_id, connection):
     except Error as e:
         print(f"Error al calcular total de la factura: {e}")
         return 0
-
+# ................................................................................................
+def obtener_total_factura(factura_id, connection):
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT total, factura_id FROM facturas WHERE cliente_id = %s", (factura_id,))  # Change 'id_cliente' to 'cliente_id'
+        total = cursor.fetchone()[0]
+        return total
+    except Error as e:
+        print(f"Error al obtener el total de la factura: {e}")
+        return None
 # ................................................................................................
 def obtener_servicios_asignados(cliente_id, connection):
     try:
@@ -277,15 +286,26 @@ def obtener_nombre_servicio_por_id(servicio_id, connection):
     return None
 # ................................................................................................
 def insertar_factura(cliente_id, total, descuento, connection):
+    # Obtener el siguiente número de factura
     nuevo_numero_actual_formato, nuevo_numero_actual_sin_formato = obtener_siguiente_numero_actual(connection)
+
     if nuevo_numero_actual_formato:
         try:
             cursor = connection.cursor()
-            # Actualizar la consulta para excluir el campo 'servicio_id'
+
+            # Verificar si ya existe una factura con el mismo número de factura para el cliente
+            if factura_ya_existe(cliente_id, nuevo_numero_actual_sin_formato, connection):
+                print(f"Ya existe una factura con el número {nuevo_numero_actual_formato} para este cliente.")
+                return None
+
+            # Si no existe, insertar la nueva factura
             query = "INSERT INTO facturas (factura_id, cliente_id, total, descuento) VALUES (%s, %s, %s, %s)"
             cursor.execute(query, (nuevo_numero_actual_sin_formato, cliente_id, total, descuento))
             connection.commit()
+
+            # Actualizar la secuencia de facturas
             actualizar_secuencia_factura(nuevo_numero_actual_sin_formato, connection)
+
             return cursor.lastrowid
         except Error as e:
             print(f"Error al insertar factura: {e}")
@@ -294,17 +314,17 @@ def insertar_factura(cliente_id, total, descuento, connection):
     else:
         return None
 
+
 # ................................................................................................ 
-def insertar_detalle_factura(factura_id, servicio_id, cantidad, precio, connection):
+def insertar_detalle_factura(factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento, connection):
     try:
         cursor = connection.cursor()
-        query = "INSERT INTO detalle_factura (factura_id, servicio_id, cantidad, precio) VALUES (%s, %s, %s, %s)"
-        cursor.execute(query, (factura_id, servicio_id, cantidad, precio))
+        query = "INSERT INTO detalle_factura (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento) VALUES (%s, %s, %s, %s, %s, %s, %s)"
+        cursor.execute(query, (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento))
         connection.commit()
     except Error as e:
         print(f"Error al insertar detalle de factura: {e}")
         connection.rollback()
-
 #...................................................................................................
 # Función para obtener el siguiente número de factura
 def obtener_siguiente_numero_actual(connection):
@@ -341,5 +361,15 @@ def actualizar_secuencia_factura(nuevo_numero_actual_sin_formato, connection):
     except Error as e:
         print(f"Error al actualizar secuencia de factura: {e}")
         connection.rollback()  # En caso de error, deshace la transacción
-  
+# ................................................................................................  
+def factura_ya_existe(cliente_id, numero_factura, connection):
+    try:
+        cursor = connection.cursor()
+        query = "SELECT COUNT(*) FROM facturas WHERE cliente_id = %s AND factura_id = %s"
+        cursor.execute(query, (cliente_id, numero_factura))
+        count = cursor.fetchone()[0]
+        return count > 0  # Devuelve True si ya existe una factura con el mismo número para el cliente
+    except Error as e:
+        print(f"Error al verificar si la factura existe: {e}")
+        return False  # En caso de error, asumimos que la factura no existe para evitar duplicados
     

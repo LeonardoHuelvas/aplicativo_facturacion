@@ -193,7 +193,6 @@ def mostrar_interfaz_carga_servicios(st, cliente_id, connection):
             cantidad = st.number_input("Cantidad de servicios", min_value=1, value=1)
             precio = selected_service['precio']  # Obtener el precio desde el servicio seleccionado
 
-            
             st.text("Precio por servicio: ${precio:,.2f}", style=config["style"]["text"])
 
             # Botón para agregar el servicio seleccionado
@@ -283,7 +282,7 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
     cliente_id = next((cliente['id'] for cliente in clientes if cliente['nombre'] == nombre_cliente_seleccionado), None)
 
     if cliente_id:
-        # interfaz_añadir_servicios(cliente_id, connection)  # Asumiendo que esta función está definida en otro lugar
+        interfaz_añadir_servicios(cliente_id, connection)
         servicios_asignados = obtener_servicios_asignados(cliente_id, connection)
 
         if servicios_asignados:
@@ -291,7 +290,6 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
             descuento = st.number_input("Descuento aplicado (%)", min_value=0.0, max_value=100.0, value=0.0)
 
             if st.button("Previsualizar Factura"):
-                # Guarda los datos necesarios en st.session_state
                 st.session_state['previsualizacion_datos'] = {
                     'cliente_id': cliente_id,
                     'nombre_cliente': obtener_nombre_cliente_por_id(cliente_id, connection),
@@ -300,16 +298,13 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
                     'descuento': descuento,
                     'fecha_factura': datetime.datetime.now().strftime("%Y-%m-%d")
                 }
-                # Mostrar la previsualización de la factura
                 mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
 
             if st.button("Confirmar y Generar Factura"):
                if 'previsualizacion_datos' in st.session_state:
-                # Esta función debe manejar la lógica de inserción en la base de datos y generación de PDF
                 generar_factura_final()  # Asegúrate de que esta función está definida en factura_pdf.py
                else:
                 st.error("Datos de previsualización no están disponibles.")
-
 
         else:
             st.error("No hay servicios asignados para generar la factura.")
@@ -317,13 +312,19 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
     else:
         st.error("No se seleccionó un cliente válido.")
 
+    # Add the "Ver Facturas" button here
+    if st.button("Ver Facturas"):
+        facturas = get_facturas(connection)
+        if facturas:
+            st.subheader("Lista de Facturas")
+            for factura in facturas:
+                cliente_id = factura[0]
+                cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
+                st.write(f"ID: {factura[0]} - Cliente: {cliente_info} - Total: {obtener_total_factura(factura[0], connection)}")
+        else:
+            st.write("No hay facturas disponibles.")
 
-    # st.write("Servicios Añadidos:")
-    # if 'servicios_añadidos' in st.session_state:
-    #     df_servicios = pd.DataFrame(st.session_state['servicios_añadidos'])
-    #     st.dataframe(df_servicios)
-
-
-if __name__ == "__main__":  
-    
-    show_panels(st)
+if __name__ == "__main__":
+    connection = create_server_connection("localhost", "root", "123", "lucmonet")
+    st.set_page_config(page_title="Asignación de Servicios", layout="wide")
+    mostrar_interfaz_asignacion_servicios(st, connection)

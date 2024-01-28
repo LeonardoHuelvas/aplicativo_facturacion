@@ -1,6 +1,5 @@
 
-detalle_factura contiene factura_id, servicio_id, cantidad, precio, descuento, total, cliente_id.    . La tabla pagos: id_factura, fecha_pago, monto, metodo_pago.  Tabla servicios: nombre, descripcion, precio. la tabla facturas: factura_id, 
-servicio_id, cantidad, precio, pago_id, cliente_id, total, descuento, tabla clientes: nombre, direccion, 
+detalle_factura contiene id, factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento.    . La tabla pagos: id_factura, fecha_pago, monto, metodo_pago.  Tabla servicios: nombre, descripcion, precio. la tabla facturas: id,factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento - tabla clientes: nombre, direccion, 
  email, fecha_registro, secuencia_facturas: prefijo, numero_factura, incremento, fecha_Actualizacion
  
  asignaciones_servicios: id, cliente_id, servicio_id, fecha_asignacion, cantidad, precio
