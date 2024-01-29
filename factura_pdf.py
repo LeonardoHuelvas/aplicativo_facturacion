@@ -1,7 +1,8 @@
 from datetime import datetime
 import os
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import  A4,letter
 from reportlab.lib.units import inch, cm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph, Image
 from reportlab.lib.styles import getSampleStyleSheet
@@ -57,15 +58,19 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
 
    # Crear y añadir la tabla de servicios
     encabezados = [('Descripción de los Servicios', 'Cantidad', 'Precio')]
-    servicios_data = [encabezados[0]] + [(servicio[0], servicio[1], f"${servicio[2]:,.2f}") for servicio in servicios_asignados]
+    # Suponiendo que la estructura de cada tupla sea:
+# (id_servicio, cantidad, precio)
+    servicios_data = [encabezados[0]] + [(obtener_nombre_servicio_por_id(s[1], connection), s[2], f"${s[3]:,.2f}") for s in servicios_asignados]
+
+
     t = Table(servicios_data, colWidths=[3*inch, inch, 2*inch])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#84b1ff")),  # Fondo del encabezado
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.azure),  # Color del texto del encabezado
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#f8f8ff")),  # Fondo del encabezado
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),  # Color del texto del encabezado
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Alineación del texto en todas las celdas
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Fuente del encabezado
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Relleno inferior del encabezado
-        ('BACKGROUND', (0, 1), (-1, -1), colors.skyblue),  # Fondo del resto de la tabla
+        ('BACKGROUND', (0, 1), (-1, -1), colors.whitesmoke),  # Fondo del resto de la tabla
         ('BOX', (0, 0), (-1, -1), 1, colors.black),  # Añade un borde alrededor de toda la tabla
         ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Añade líneas de la tabla
     ]))
@@ -91,8 +96,6 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
     # Construir y guardar el PDF
     document.build(story)
     return file_name
-
-
 
 # Función para mostrar la previsualización de la factura
 def mostrar_previsualizacion(connection):
@@ -126,7 +129,6 @@ def mostrar_factura_pdf(pdf_file, servicios_asignados, connection):
            nombre_servicio = obtener_nombre_servicio_por_id(id_servicio, connection)
            st.write(f"Nombre: {nombre_servicio} - Cantidad: {cantidad} - Precio: {precio}")
           
-            
 def generar_factura_final():
     datos = st.session_state.get('previsualizacion_datos', {})
     if datos:
