@@ -305,7 +305,6 @@ def insertar_factura(cliente_id, total, descuento, connection):
 
             # Actualizar la secuencia de facturas
             actualizar_secuencia_factura(nuevo_numero_actual_sin_formato, connection)
-
             return cursor.lastrowid
         except Error as e:
             print(f"Error al insertar factura: {e}")
