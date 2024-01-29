@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -16,64 +17,81 @@ st.set_page_config(page_title="Factura de Venta", layout="wide")
 
 # Función para generar el PDF usando ReportLab
 def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection):
-    file_name = "factura.pdf"
+    # Verificar y convertir fecha_factura a un objeto datetime si es necesario
+    if isinstance(fecha_factura, int):
+        # Suponiendo que fecha_factura es una marca de tiempo UNIX
+        fecha_factura = datetime.fromtimestamp(fecha_factura)
+    elif isinstance(fecha_factura, str):
+        try:
+            fecha_factura = datetime.strptime(fecha_factura, '%Y-%m-%d')
+        except ValueError as e:
+            st.error(f"Error al convertir la fecha: {e}")
+            return None
+
+    # Configuración inicial del documento PDF
+    file_name = f"factura-{cliente_id}-{fecha_factura.strftime('%Y%m%d')}.pdf"
     document = SimpleDocTemplate(file_name, pagesize=letter)
     story = []
     styles = getSampleStyleSheet()
-    
-    # Añade un logo y establece un marco alrededor del PDF
-    story.append(Spacer(1, 2*cm))
+
+    # Añadir el logo
     im = Image('assets/logo.png', 2*inch, 1*inch)
+    im.hAlign = 'LEFT'
     story.append(im)
-    
-    # Título de la factura
+    story.append(Spacer(1, 2*cm))
+
+    # Añadir el título de la factura
     style = styles['Title']
     story.append(Paragraph("FACTURA", style))
-    story.append(Spacer(1, 0.5*cm))
+    story.append(Spacer(1, 12))
 
-    # Información del cliente
+    # Añadir la fecha de la factura
     style = styles['Normal']
+    story.append(Paragraph(f"Fecha: {fecha_factura.strftime('%d/%m/%Y')}", style))
+    story.append(Spacer(1, 12))
+
+    # Añadir la información del cliente
     cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
     story.append(Paragraph(f"Cliente: {cliente_info}", style))
     story.append(Spacer(1, 0.5*cm))
 
-    # Encabezados de las columnas
-    style = styles['Heading2']
+   # Crear y añadir la tabla de servicios
     encabezados = [('Descripción de los Servicios', 'Cantidad', 'Precio')]
-    servicios_data = [encabezados[0]]
-    
-    # Itera sobre los servicios y los añade a la lista
-    for servicio in servicios_asignados:
-        nombre_servicio = obtener_nombre_servicio_por_id(servicio[1], connection)
-        servicios_data.append((nombre_servicio, servicio[2], f"${servicio[3]:,.2f}"))
-    
-    # Añade la tabla de servicios al documento
+    servicios_data = [encabezados[0]] + [(servicio[0], servicio[1], f"${servicio[2]:,.2f}") for servicio in servicios_asignados]
     t = Table(servicios_data, colWidths=[3*inch, inch, 2*inch])
     t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#FFEEEE")), # Fondo del encabezado
-        ('TEXTCOLOR', (0,0), (-1,0), colors.black), # Color del texto del encabezado
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'), # Alineación del texto en todas las celdas
-        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'), # Fuente del encabezado
-        ('BOTTOMPADDING', (0,0), (-1,0), 12), # Relleno inferior del encabezado
-        ('BACKGROUND', (0,1), (-1,-1), colors.beige), # Fondo del resto de la tabla
-        ('GRID', (0,0), (-1,-1), 1, colors.black), # Líneas de la tabla
-        # Añade más estilos según sea necesario
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#84b1ff")),  # Fondo del encabezado
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.azure),  # Color del texto del encabezado
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),  # Alineación del texto en todas las celdas
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),  # Fuente del encabezado
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),  # Relleno inferior del encabezado
+        ('BACKGROUND', (0, 1), (-1, -1), colors.skyblue),  # Fondo del resto de la tabla
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),  # Añade un borde alrededor de toda la tabla
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),  # Añade líneas de la tabla
     ]))
     story.append(t)
-    
-    # Añade el subtotal, descuento y total final
-    descuento = Decimal(descuento) if not isinstance(descuento, Decimal) else descuento
-    descuento_aplicado = total * (descuento / Decimal('100'))
+    # Añadir el subtotal, descuento y total final
+    descuento_decimal = Decimal(descuento) if not isinstance(descuento, Decimal) else descuento
+    descuento_aplicado = total * (descuento_decimal / Decimal('100'))
     total_final = total - descuento_aplicado
-    
-    story.append(Spacer(1, 0.5*cm))
-    story.append(Paragraph(f"Subtotal: ${total:,.2f}", style))
-    story.append(Paragraph(f"Descuento ({descuento}%): -${descuento_aplicado:,.2f}", style))
-    story.append(Paragraph(f"Total Final: ${total_final:,.2f}", style))
-    
-    # Construye el PDF
+    datos_totales = [
+        ['Subtotal', f"${total:,.2f}"],
+        [f"Descuento ({descuento}%)", f"-${descuento_aplicado:,.2f}"],
+        ['Total Final', f"${total_final:,.2f}"]
+    ]
+    t_totals = Table(datos_totales, colWidths=[None, 2*inch])
+    t_totals.setStyle(TableStyle([
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+    story.append(t_totals)
+
+    # Construir y guardar el PDF
     document.build(story)
     return file_name
+
 
 
 # Función para mostrar la previsualización de la factura
@@ -153,39 +171,34 @@ def run():
         precio = st.number_input("Precio", min_value=0.0, format='%f')
         
         if st.button("Ver Facturas"):
-           facturas = get_facturas(connection)
-           if facturas:
+            facturas = get_facturas(connection)
+        if facturas:
             st.subheader("Lista de Facturas")
             for factura in facturas:
-                factura_id = factura[0]  # Asumiendo que el ID de la factura está en factura[0]
+                factura_id = factura[0]
                 cliente_id = factura[1]
-                fecha_factura = factura[4]  # Asumiendo que factura[4] es la fecha de la factura
+                fecha_factura = factura[4]
                 cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
                 servicios_asignados = servicio_asignados_cliente(cliente_id, connection)
                 total = obtener_total_factura(factura_id, connection)
-                descuento = Decimal('0.0')  # Si tienes el descuento en la factura, úsalo aquí
+                descuento = Decimal('0.0')  # Asegúrate de que este valor es el correcto
 
-                # Generamos el nombre del archivo PDF para cada factura
+                # Asumiendo que la función generar_factura_pdf retorna la ruta completa del archivo PDF
                 nombre_archivo_pdf = f"factura-{factura_id}.pdf"
+                ruta_archivo_pdf = f"./facturas_generadas/{nombre_archivo_pdf}"  # Asegúrate de que el directorio exista
+
+                if not os.path.exists(ruta_archivo_pdf):
+                    ruta_archivo_pdf = generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection)
 
                 with st.container():
-                    st.write(f"ID: {factura_id} - Cliente: {cliente_info} - Total: {total}")
-                    
-                    # Comprobamos si el archivo de la factura ya existe para no generar uno nuevo cada vez
-                    ruta_archivo_pdf = f"/invoices{cliente_id}"  # Debes actualizar esta ruta según tu configuración
-                    
-                    # Generamos el PDF solo si no existe, para evitar la regeneración en cada click
-                    if not os.path.exists(ruta_archivo_pdf):
-                        ruta_archivo_pdf = generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection)
-
-                    # Botón para descargar la factura específica
+                    st.write(f"ID: {factura_id} - Cliente: {cliente_info} - Total: ${total}")
                     with open(ruta_archivo_pdf, "rb") as pdf_file:
                         st.download_button(
                             label="Descargar Factura",
                             data=pdf_file,
                             file_name=nombre_archivo_pdf,
                             mime="application/pdf"
-                    )
+                        )
         else:
             st.write("No hay facturas disponibles.")
 
