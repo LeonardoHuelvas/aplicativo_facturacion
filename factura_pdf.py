@@ -20,14 +20,9 @@ st.set_page_config(page_title="Factura de Venta", layout="wide")
 def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection):
     # Verificar y convertir fecha_factura a un objeto datetime si es necesario
     if isinstance(fecha_factura, int):
-        # Suponiendo que fecha_factura es una marca de tiempo UNIX
         fecha_factura = datetime.fromtimestamp(fecha_factura)
-    elif isinstance(fecha_factura, str):
-        try:
-            fecha_factura = datetime.strptime(fecha_factura, '%Y-%m-%d')
-        except ValueError as e:
-            st.error(f"Error al convertir la fecha: {e}")
-            return None
+    # Cargar la fecha actual
+    fecha_factura = datetime.now()
 
     # Configuración inicial del documento PDF
     file_name = f"factura-{cliente_id}-{fecha_factura.strftime('%Y%m%d')}.pdf"
@@ -58,8 +53,7 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
 
    # Crear y añadir la tabla de servicios
     encabezados = [('Descripción de los Servicios', 'Cantidad', 'Precio')]
-    # Suponiendo que la estructura de cada tupla sea:
-# (id_servicio, cantidad, precio)
+    # (id_servicio, cantidad, precio)  Se obtiene el nombre, la cantidad y el precio de los servicios del cliente
     servicios_data = [encabezados[0]] + [(obtener_nombre_servicio_por_id(s[1], connection), s[2], f"${s[3]:,.2f}") for s in servicios_asignados]
 
 
@@ -172,6 +166,7 @@ def run():
         cantidad = st.number_input("Cantidad", min_value=1, value=1)
         precio = st.number_input("Precio", min_value=0.0, format='%f')
         
+        
         if st.button("Ver Facturas"):
             facturas = get_facturas(connection)
         if facturas:
@@ -183,11 +178,11 @@ def run():
                 cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
                 servicios_asignados = servicio_asignados_cliente(cliente_id, connection)
                 total = obtener_total_factura(factura_id, connection)
-                descuento = Decimal('0.0')  # Asegúrate de que este valor es el correcto
+                descuento = Decimal('0.0')  
 
                 # Asumiendo que la función generar_factura_pdf retorna la ruta completa del archivo PDF
                 nombre_archivo_pdf = f"factura-{factura_id}.pdf"
-                ruta_archivo_pdf = f"./facturas_generadas/{nombre_archivo_pdf}"  # Asegúrate de que el directorio exista
+                ruta_archivo_pdf = f"I:\Desarrollo\proyecto\facutracion_internet\aplicativo_facturación/{nombre_archivo_pdf}"  # Asegúrate de que el directorio exista
 
                 if not os.path.exists(ruta_archivo_pdf):
                     ruta_archivo_pdf = generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection)
