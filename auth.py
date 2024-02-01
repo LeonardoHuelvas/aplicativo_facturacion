@@ -1,7 +1,11 @@
 import bcrypt
+import streamlit
 from database import create_server_connection
 
-
+def logout():
+    # Elimina las variables de sesión
+    streamlit.session_state.clear()
+ 
 
 def hash_password(password):
     password_bytes = password.encode('utf-8')
@@ -28,3 +32,5 @@ def insert_user(username, password):
     query = "INSERT INTO usuarios (username, password) VALUES (%s, %s)"
     cursor.execute(query, (username, hashed_password.decode('utf-8')))
     connection.commit()
+    
+    

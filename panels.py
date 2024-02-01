@@ -1,3 +1,5 @@
+import filecmp
+import os
 import pandas as pd
 import streamlit as st 
 import re
@@ -22,7 +24,7 @@ def show_panels(st):
     st.sidebar.title("Opciones del Panel")
     panel_option = st.sidebar.radio(
         "Ir a",
-        ["Crear Cliente", "Crear Servicios", "Interfaz de Servicios", "Gestionar Asignación de Servicios"]
+        ["Crear Cliente", "Crear Servicios", "Interfaz de Servicios", "Gestionar Asignación de Servicios", "Descargar Facturas"]
     )
     
     if panel_option == "Crear Cliente":
@@ -35,6 +37,9 @@ def show_panels(st):
     elif panel_option == "Gestionar Asignación de Servicios":
         connection = create_server_connection("localhost", "root", "123", "lucmonet")
         mostrar_interfaz_asignacion_servicios(st, connection)
+    elif panel_option == "Descargar Facturas":
+        connection = create_server_connection("localhost", "root", "123", "lucmonet")
+        interfaz_facturas:(st, connection)
 
 
 # ................................................................................................
@@ -312,7 +317,7 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
     else:
         st.error("No se seleccionó un cliente válido.")
 
-    # Add the "Ver Facturas" button here
+    #  "Ver Facturas" 
     if st.button("Ver Facturas"):
         facturas = get_facturas(connection)
         if facturas:
@@ -324,7 +329,78 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
         else:
             st.write("No hay facturas disponibles.")
 
+#---------------------------------------------------------------------
+def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_por_id, obtener_cliente_por_nombre, connection):
+    st.title("Descargar Facturas")
+
+    # Layout of the interface using columns
+    col1, col2 = st.columns([2, 3])
+
+    # Column 1: Client input
+    with col1:
+        st.subheader("Seleccionar Cliente")
+        cliente_nombre_o_id = st.text_input("Nombre o ID del cliente")
+        if not cliente_nombre_o_id:
+            st.warning("Debes introducir un nombre o ID de cliente.")
+            return
+        cliente = obtener_detalle_cliente_por_id(obtener_cliente_por_nombre, connection, cliente_nombre_o_id)
+        if not cliente:
+            st.error(f"No se encontró ningún cliente con el nombre o ID '{cliente_nombre_o_id}'.")
+            return
+
+    # Column 2: Date selection and results
+    with col2:
+        st.subheader("Filtrar por Fechas")
+        start_date = st.date_input("Fecha de inicio", min_value=datetime(2020, 1, 1))
+        end_date = st.date_input("Fecha de fin", min_value=datetime(2020, 1, 1))
+
+        # Button for searching facturas
+        if st.button("Buscar Facturas"):
+            facturas = get_facturas_por_fecha(connection, start_date, end_date)
+            if facturas:
+                st.subheader("Facturas encontradas:")
+                for factura in facturas:
+                    factura_id, cliente_id, fecha_factura, total, descuento = factura
+                    nombre_archivo_pdf = f"factura-{cliente_id}-{factura_id}.pdf"
+                    ruta_archivo_pdf = os.path.join('./facturas', nombre_archivo_pdf)
+
+                    # Details of the factura
+                    st.table({
+                        "Factura ID": [factura_id],
+                        "Cliente ID": [cliente_id],
+                        "Fecha de Factura": [fecha_factura],
+                        "Total": [total],
+                        "Descuento": [descuento]
+                    })
+                        #  "Ver Facturas"  Esto lo agregue reciente por si algún error -  
+                    if st.button("Ver Facturas"):
+                        facturas = get_facturas(connection)
+                        if facturas:
+                            st.subheader("Lista de Facturas")
+                            for factura in facturas:
+                                cliente_id = factura[0]
+                                cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
+                                st.write(f"ID: {factura[0]} - Cliente: {cliente_info} - Total: {obtener_total_factura(factura[0], connection)}")
+                        else:
+                            st.write("No hay facturas disponibles.")
+                                         
+
+                    # Link for downloading the factura
+                    if os.path.exists(ruta_archivo_pdf):
+                        with open(ruta_archivo_pdf, "rb") as f:
+                            data = f.read()
+                        st.download_button(label=f"Descargar Factura {factura_id}", data=data, file_name=nombre_archivo_pdf, mime="application/pdf")
+                    else:
+                        st.warning(f"No se encontró la factura {factura_id}.")
+            else:
+                st.warning("No se encontraron facturas en el rango de fechas seleccionado.")
+                
+                
+
+ 
 if __name__ == "__main__":
     connection = create_server_connection("localhost", "root", "123", "lucmonet")
     st.set_page_config(page_title="Asignación de Servicios", layout="wide")
     mostrar_interfaz_asignacion_servicios(st, connection)
+    st.set_page_config(page_title="Descargar Facturas", layout="wide")
+    interfaz_descargar_facturas(st, connection)

@@ -371,4 +371,29 @@ def factura_ya_existe(cliente_id, numero_factura, connection):
     except Error as e:
         print(f"Error al verificar si la factura existe: {e}")
         return False  # En caso de error, asumimos que la factura no existe para evitar duplicados
+
+#......................................................................
+def get_facturas_por_fecha(inicio, fin, connection):
+    try:
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+                SELECT
+                    factura_id,
+                    cliente_id,
+                    total,
+                    descuento,
+                    fecha_creacion
+                FROM
+                    facturas
+                WHERE
+                    fecha_creacion BETWEEN %s AND %s
+            """,
+            (inicio, fin),
+        )
+        facturas = cursor.fetchall()
+        return facturas
+    except Error as e:
+        print(f"Error al obtener facturas por fecha: {e}")
+        return []
     

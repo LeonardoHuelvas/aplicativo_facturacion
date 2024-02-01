@@ -57,7 +57,10 @@ def main():
             # Implementa la función para gestionar asignación de servicios aquí
             pass            
         if st.button("Cerrar Sesión"):
-            auth.logout()
+            auth.logout()   
+            st.experimental_rerun()   
+            st.success("Sesión cerrada correctamente")  # Muestra un mensaje de confirmación
+
 
 # Inicio de la aplicación
 if __name__ == "__main__":
