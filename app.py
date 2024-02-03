@@ -1,7 +1,7 @@
 import streamlit as st
 from dotenv import load_dotenv
 import auth
-from panels import mostrar_interfaz_carga_servicios, show_panels
+from panels import mostrar_interfaz_carga_servicios, show_panels, show_descargar_facturas
 from database import create_server_connection, get_clientes
 from styles import load_styles
 
@@ -28,7 +28,7 @@ def handle_login():
 def main():
     st.title("Sistema de Facturación")
 
-    # Inicializar estado de la sesión
+    # Inicializa estado de la sesión
     if 'logged_in' not in st.session_state:
         st.session_state['logged_in'] = False
     if 'selected_cliente_id' not in st.session_state:
@@ -38,7 +38,7 @@ def main():
         st.subheader("Iniciar Sesión")
         if handle_login():
             st.experimental_rerun() 
-            st.rerun()
+             
     else:
         selected_panel = show_panels(st)
         if selected_panel == "Opciones de Facturación":
@@ -53,13 +53,13 @@ def main():
                         mostrar_interfaz_carga_servicios(st.session_state['selected_cliente_id'], connection)
                 else:
                     st.warning("No hay clientes disponibles en este momento.")
-        elif selected_panel == "Gestionar Asignación de Servicios":
-            # Implementa la función para gestionar asignación de servicios aquí
-            pass            
-        if st.button("Cerrar Sesión"):
-            auth.logout()   
-            st.experimental_rerun()   
-            st.success("Sesión cerrada correctamente")  # Muestra un mensaje de confirmación
+        # elif selected_panel == "Gestionar Asignación de Servicios":
+        #     # Implementa la función para gestionar asignación de servicios aquí
+        #     pass            
+        if st.sidebar.button("Cerrar Sesión"):
+           auth.logout()
+        #    st.experimental_rerun()
+           st.success("Sesión cerrada correctamente")  # Muestra un mensaje de confirmación
 
 
 # Inicio de la aplicación

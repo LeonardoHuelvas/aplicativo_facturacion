@@ -21,15 +21,23 @@ def create_server_connection(host, user, passwd, db):
     return connection
 # ................................................................................................
 # Función para crear servicios
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.ERROR)
+
 def insert_service(nombre, descripcion, precio, connection):
     try:
         with connection.cursor() as cursor:
+            if not nombre or not descripcion or not precio:
+                st.error("Los campos Nombre, Descripción y Precio no pueden estar vacíos.")
+                return False
             query = "INSERT INTO servicios (nombre, descripcion, precio) VALUES (%s, %s, %s)"
             cursor.execute(query, (nombre, descripcion, precio))
             connection.commit()
             return True
     except Error as e:
-        print(f"Error: {e}")
+        logger.error(f"Error al insertar el servicio: {e}")
         return False
 # ................................................................................................
 # Función para crear clientes
@@ -371,23 +379,26 @@ def factura_ya_existe(cliente_id, numero_factura, connection):
     except Error as e:
         print(f"Error al verificar si la factura existe: {e}")
         return False  # En caso de error, asumimos que la factura no existe para evitar duplicados
-
 #......................................................................
-def get_facturas_por_fecha(inicio, fin, connection):
+def get_facturas_por_fecha(connection, inicio, fin):
     try:
         cursor = connection.cursor()
         cursor.execute(
             """
-                SELECT
-                    factura_id,
-                    cliente_id,
-                    total,
-                    descuento,
-                    fecha_creacion
-                FROM
-                    facturas
-                WHERE
-                    fecha_creacion BETWEEN %s AND %s
+            SELECT
+                f.factura_id,
+                f.cliente_id,
+                f.total,
+                f.descuento,
+                a.fecha_asignacion
+            FROM
+                facturas f
+            INNER JOIN
+                detalle_factura d ON f.factura_id = d.factura_id
+            INNER JOIN
+                asignaciones_servicios a ON d.servicio_id = a.servicio_id AND f.cliente_id = a.cliente_id
+            WHERE
+                a.fecha_asignacion BETWEEN %s AND %s
             """,
             (inicio, fin),
         )
@@ -396,4 +407,27 @@ def get_facturas_por_fecha(inicio, fin, connection):
     except Error as e:
         print(f"Error al obtener facturas por fecha: {e}")
         return []
-    
+#--------------------
+def obtener_siguiente_numero_factura(connection):
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM secuencia_facturas WHERE id = 1 FOR UPDATE")  # Bloquea la fila para evitar duplicados
+        secuencia = cursor.fetchone()
+        if secuencia:
+            numero_actual, incremento, prefijo = secuencia
+            nuevo_numero_actual = numero_actual + incremento
+        else:
+            # Si no hay registro previo, inicializamos uno.
+            prefijo = "LUC"  # Aquí se define el prefijo de la factura
+            nuevo_numero_actual = 1
+            incremento = 1  # El incremento usual es 1
+            # Inserta el registro inicial en la tabla secuencia_facturas
+            cursor.execute("INSERT INTO secuencia_facturas (prefijo, numero_actual, incremento, fecha_Actualizacion) VALUES (%s, %s, %s, NOW())",
+                           (prefijo, nuevo_numero_actual, incremento))
+            connection.commit()
+        nuevo_numero_actual_formato = f"{prefijo}{nuevo_numero_actual:01d}"  # Formatea con ceros a la izquierda hasta 5 dígitos
+        return nuevo_numero_actual_formato, nuevo_numero_actual  # Devuelve ambos para actualizar la base de datos correctamente
+    except Error as e:
+        print(f"Error al obtener el siguiente número de factura: {e}")
+        connection.rollback()  # En caso de error, deshace la transacción
+        return None, None

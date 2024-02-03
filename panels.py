@@ -5,8 +5,8 @@ import streamlit as st
 import re
 import datetime
 from streamlit import config
-# from factura_pdf import *
 from database import *
+from descargar_facturas import interfaz_descargar_facturas
 from factura_pdf import generar_factura_final, mostrar_factura_pdf, mostrar_previsualizacion
 from styles import load_styles
 from mysql.connector import Error
@@ -17,7 +17,7 @@ from decimal import Decimal
 # Verifica si 'servicios_añadidos' ya existe en st.session_state, si no, inicialízalo como una lista vacía
 if 'servicios_añadidos' not in st.session_state:
     st.session_state.servicios_añadidos = []
-    
+
 st.markdown(load_styles(), unsafe_allow_html=True)
 # ................................................................................................
 def show_panels(st):
@@ -38,30 +38,53 @@ def show_panels(st):
         connection = create_server_connection("localhost", "root", "123", "lucmonet")
         mostrar_interfaz_asignacion_servicios(st, connection)
     elif panel_option == "Descargar Facturas":
-        connection = create_server_connection("localhost", "root", "123", "lucmonet")
-        interfaz_facturas:(st, connection)
+        show_descargar_facturas(st)
 
+# ................................................................................................
+# Función para mostrar la interfaz de descarga de facturas
+ 
+
+def show_descargar_facturas(st):
+    connection = create_server_connection("localhost", "root", "123", "lucmonet")
+    interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_por_id, obtener_cliente_por_nombre, obtener_total_factura, connection)
 
 # ................................................................................................
 def show_client_panel(st):
     st.subheader("Crear Cliente")
     with st.form(key='client_form'):
-        nombre  = st.text_input("Nombre")
-        direccion  = st.text_input("Dirección")
-        telefono  = st.text_input("Teléfono")
-        email  = st.text_input("Email")
+        nombre = st.text_input("Nombre")
+        direccion = st.text_input("Dirección")
+        telefono = st.text_input("Teléfono")
+        email = st.text_input("Email")
         fecha_registro = st.date_input("Fecha de Registro")
         submit_button = st.form_submit_button(label='Crear Cliente')
         
         if submit_button:
-            connection = create_server_connection("localhost", "root", "123", "lucmonet")
-            if insert_clientes(nombre, direccion, telefono, email, fecha_registro, connection):
-                st.success("Cliente creado con éxito")
-            else:
-                st.error("Hubo un error al crear el cliente")
+            # Primero validamos los datos antes de intentar insertarlos
+            try:
+                # Validación de los campos
+                validar_nombre(nombre)    
+                validar_direccion(direccion)    
+                validar_telefono(telefono)    
+                validar_email(email)
+                
+                # Si todo está correcto, abrimos la conexión e intentamos insertar el cliente
+                connection = create_server_connection("localhost", "root", "123", "lucmonet")
+                try:
+                    if insert_clientes(nombre, direccion, telefono, email, fecha_registro, connection):
+                        st.success("Cliente creado con éxito")
+                    else:
+                        st.error("Hubo un error al crear el cliente")
+                finally:
+                    # Cerramos la conexión una vez finalizado el proceso
+                    if connection.is_connected():
+                        connection.close()
+            except ValueError as e:
+                # Si hay un error en la validación, mostramos el mensaje
+                st.error(str(e))
+           
 # ................................................................................................
 # Función para editar un cliente
-
 def validar_nombre(nombre):
     if not nombre:
         raise ValueError("El nombre no puede estar vacío.")
@@ -80,15 +103,21 @@ def validar_direccion(direccion):
         raise ValueError("La dirección debe tener al menos 10 caracteres.")
 # ................................................................................................
 def validar_telefono(telefono):
+    """
+    Valida que el número de teléfono sea válido.
+
+    Args:
+        telefono (str): El número de teléfono a validar.
+
+    Raises:
+        ValueError: Si el teléfono está vacío, no tiene 9 dígitos o no está compuesto solo por números.
+    """
     if not telefono:
         raise ValueError("El teléfono no puede estar vacío.")
-    if not isinstance(telefono, str):
-        raise ValueError("El teléfono debe ser una cadena de caracteres.")
-    if len(telefono) != 9:
+    if not all(char.isdigit() for char in telefono):
+        raise ValueError("El teléfono debe estar compuesto solo por números, no se permiten letras ni otros caracteres.")
+    if len(telefono) != 10:
         raise ValueError("El teléfono debe tener 9 dígitos.")
-    if not telefono.isdigit():
-        raise ValueError("El teléfono debe estar compuesto solo por números.")
-
 # ................................................................................................
 def validar_email(email):
     if not isinstance(email, str):
@@ -116,7 +145,8 @@ def editar_cliente(cliente_id, nombre, direccion, telefono, email):
     connection.commit()
 
 # ................................................................................................
-
+nombre = st.text_input("Nombre del Servicio", max_chars=50)
+descripcion = st.text_area("Descripción", max_chars=255)
 def show_service_panel(st):
     st.subheader("Crear Servicios")
     with st.form(key='service_form'):
@@ -159,7 +189,6 @@ def mostrar_interfaz_servicios(st,connection):
 
     # Input para el nombre del servicio
     nombre_servicio = st.text_input( "Nombre del servicio ")
-
     # Validar el nombre del servicio solo si se proporciona un nombre no vacío
     if nombre_servicio.strip():  # Verifica si el nombre no está vacío después de eliminar espacios en blanco
         try:
@@ -283,35 +312,40 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
     clientes = get_clientes(connection)
     nombres_clientes = [cliente['nombre'] for cliente in clientes]
     nombre_cliente_seleccionado = st.selectbox("Seleccionar Cliente", nombres_clientes)
+    
+    if obtener_id_servicio_por_nombre:
+       cliente_id = next((cliente['id'] for cliente in clientes if cliente['nombre'] == nombre_cliente_seleccionado), None)
 
-    cliente_id = next((cliente['id'] for cliente in clientes if cliente['nombre'] == nombre_cliente_seleccionado), None)
+       if cliente_id:
+            interfaz_añadir_servicios(cliente_id, connection)
+            servicios_asignados = obtener_servicios_asignados(cliente_id, connection)
+            
+            if not servicios_asignados:
+                st.error("Este cliente no tiene servicios asignados. Por favor, asigna servicios antes de continuar ")
+                return
 
-    if cliente_id:
-        interfaz_añadir_servicios(cliente_id, connection)
-        servicios_asignados = obtener_servicios_asignados(cliente_id, connection)
+            if servicios_asignados:
+                total = calcular_total_factura(cliente_id, connection)
+                descuento = st.number_input("Descuento aplicado (%)", min_value=0.0, max_value=100.0, value=0.0)
 
-        if servicios_asignados:
-            total = calcular_total_factura(cliente_id, connection)
-            descuento = st.number_input("Descuento aplicado (%)", min_value=0.0, max_value=100.0, value=0.0)
+                if st.button("Previsualizar Factura"):
+                    st.session_state['previsualizacion_datos'] = {
+                        'cliente_id': cliente_id,
+                        'nombre_cliente': obtener_nombre_cliente_por_id(cliente_id, connection),
+                        'servicios_asignados': servicios_asignados,
+                        'total': total,
+                        'descuento': descuento,
+                        'fecha_factura': datetime.datetime.now().strftime("%Y-%m-%d")
+                    }
+                    mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
 
-            if st.button("Previsualizar Factura"):
-                st.session_state['previsualizacion_datos'] = {
-                    'cliente_id': cliente_id,
-                    'nombre_cliente': obtener_nombre_cliente_por_id(cliente_id, connection),
-                    'servicios_asignados': servicios_asignados,
-                    'total': total,
-                    'descuento': descuento,
-                    'fecha_factura': datetime.datetime.now().strftime("%Y-%m-%d")
-                }
-                mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
+                if st.button("Confirmar y Generar Factura"):
+                   if 'previsualizacion_datos' in st.session_state:
+                    generar_factura_final()  # Asegúrate de que esta función está definida en factura_pdf.py
+                   else:
+                    st.error("Datos de previsualización no están disponibles.")
 
-            if st.button("Confirmar y Generar Factura"):
-               if 'previsualizacion_datos' in st.session_state:
-                generar_factura_final()  # Asegúrate de que esta función está definida en factura_pdf.py
-               else:
-                st.error("Datos de previsualización no están disponibles.")
-
-        else:
+       else:
             st.error("No hay servicios asignados para generar la factura.")
 
     else:
@@ -330,77 +364,12 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
             st.write("No hay facturas disponibles.")
 
 #---------------------------------------------------------------------
-def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_por_id, obtener_cliente_por_nombre, connection):
-    st.title("Descargar Facturas")
 
-    # Layout of the interface using columns
-    col1, col2 = st.columns([2, 3])
 
-    # Column 1: Client input
-    with col1:
-        st.subheader("Seleccionar Cliente")
-        cliente_nombre_o_id = st.text_input("Nombre o ID del cliente")
-        if not cliente_nombre_o_id:
-            st.warning("Debes introducir un nombre o ID de cliente.")
-            return
-        cliente = obtener_detalle_cliente_por_id(obtener_cliente_por_nombre, connection, cliente_nombre_o_id)
-        if not cliente:
-            st.error(f"No se encontró ningún cliente con el nombre o ID '{cliente_nombre_o_id}'.")
-            return
-
-    # Column 2: Date selection and results
-    with col2:
-        st.subheader("Filtrar por Fechas")
-        start_date = st.date_input("Fecha de inicio", min_value=datetime(2020, 1, 1))
-        end_date = st.date_input("Fecha de fin", min_value=datetime(2020, 1, 1))
-
-        # Button for searching facturas
-        if st.button("Buscar Facturas"):
-            facturas = get_facturas_por_fecha(connection, start_date, end_date)
-            if facturas:
-                st.subheader("Facturas encontradas:")
-                for factura in facturas:
-                    factura_id, cliente_id, fecha_factura, total, descuento = factura
-                    nombre_archivo_pdf = f"factura-{cliente_id}-{factura_id}.pdf"
-                    ruta_archivo_pdf = os.path.join('./facturas', nombre_archivo_pdf)
-
-                    # Details of the factura
-                    st.table({
-                        "Factura ID": [factura_id],
-                        "Cliente ID": [cliente_id],
-                        "Fecha de Factura": [fecha_factura],
-                        "Total": [total],
-                        "Descuento": [descuento]
-                    })
-                        #  "Ver Facturas"  Esto lo agregue reciente por si algún error -  
-                    if st.button("Ver Facturas"):
-                        facturas = get_facturas(connection)
-                        if facturas:
-                            st.subheader("Lista de Facturas")
-                            for factura in facturas:
-                                cliente_id = factura[0]
-                                cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
-                                st.write(f"ID: {factura[0]} - Cliente: {cliente_info} - Total: {obtener_total_factura(factura[0], connection)}")
-                        else:
-                            st.write("No hay facturas disponibles.")
-                                         
-
-                    # Link for downloading the factura
-                    if os.path.exists(ruta_archivo_pdf):
-                        with open(ruta_archivo_pdf, "rb") as f:
-                            data = f.read()
-                        st.download_button(label=f"Descargar Factura {factura_id}", data=data, file_name=nombre_archivo_pdf, mime="application/pdf")
-                    else:
-                        st.warning(f"No se encontró la factura {factura_id}.")
-            else:
-                st.warning("No se encontraron facturas en el rango de fechas seleccionado.")
                 
                 
 
  
 if __name__ == "__main__":
-    connection = create_server_connection("localhost", "root", "123", "lucmonet")
     st.set_page_config(page_title="Asignación de Servicios", layout="wide")
-    mostrar_interfaz_asignacion_servicios(st, connection)
-    st.set_page_config(page_title="Descargar Facturas", layout="wide")
-    interfaz_descargar_facturas(st, connection)
+    show_panels()
