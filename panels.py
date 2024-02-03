@@ -310,46 +310,54 @@ def interfaz_añadir_servicios(cliente_id, connection):
 def mostrar_interfaz_asignacion_servicios(st, connection):
     st.subheader("Gestionar Asignación de Servicios")
     clientes = get_clientes(connection)
-    nombres_clientes = [cliente['nombre'] for cliente in clientes]
+    
+    if not clientes:
+        st.error("No hay clientes disponibles, por favor, registra cliente antes de continuar")
+        return 
+    
+    nombres_clientes = [""] + [cliente['nombre'] for cliente in clientes]  # Añade un elemento vacío al principio
     nombre_cliente_seleccionado = st.selectbox("Seleccionar Cliente", nombres_clientes)
     
-    if obtener_id_servicio_por_nombre:
-       cliente_id = next((cliente['id'] for cliente in clientes if cliente['nombre'] == nombre_cliente_seleccionado), None)
+    if nombre_cliente_seleccionado == "":
+        st.write("Seleccione un Cliente para asignar servicios.")
+        return
+    
+    # Asumo que obtener_id_servicio_por_nombre es una función o condición que no está definida en tu fragmento de código
+    # Si es una función, debes reemplazar esta línea con la llamada correspondiente a esa función
+    if nombre_cliente_seleccionado:  
+        cliente_id = next((cliente['id'] for cliente in clientes if cliente['nombre'] == nombre_cliente_seleccionado), None)
 
-       if cliente_id:
+        if cliente_id:
             interfaz_añadir_servicios(cliente_id, connection)
             servicios_asignados = obtener_servicios_asignados(cliente_id, connection)
-            
             if not servicios_asignados:
                 st.error("Este cliente no tiene servicios asignados. Por favor, asigna servicios antes de continuar ")
                 return
 
-            if servicios_asignados:
-                total = calcular_total_factura(cliente_id, connection)
-                descuento = st.number_input("Descuento aplicado (%)", min_value=0.0, max_value=100.0, value=0.0)
+            total = calcular_total_factura(cliente_id, connection)
+            descuento = st.number_input("Descuento aplicado (%)", min_value=0.0, max_value=100.0, value=0.0)
 
-                if st.button("Previsualizar Factura"):
-                    st.session_state['previsualizacion_datos'] = {
-                        'cliente_id': cliente_id,
-                        'nombre_cliente': obtener_nombre_cliente_por_id(cliente_id, connection),
-                        'servicios_asignados': servicios_asignados,
-                        'total': total,
-                        'descuento': descuento,
-                        'fecha_factura': datetime.datetime.now().strftime("%Y-%m-%d")
-                    }
-                    mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
+            if st.button("Previsualizar Factura"):
+                st.session_state['previsualizacion_datos'] = {
+                    'cliente_id': cliente_id,
+                    'nombre_cliente': obtener_nombre_cliente_por_id(cliente_id, connection),
+                    'servicios_asignados': servicios_asignados,
+                    'total': total,
+                    'descuento': descuento,
+                    'fecha_factura': datetime.datetime.now().strftime("%Y-%m-%d")
+                }
+                mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
 
-                if st.button("Confirmar y Generar Factura"):
-                   if 'previsualizacion_datos' in st.session_state:
+            if st.button("Confirmar y Generar Factura"):
+                if 'previsualizacion_datos' in st.session_state:
                     generar_factura_final()  # Asegúrate de que esta función está definida en factura_pdf.py
-                   else:
+                else:
                     st.error("Datos de previsualización no están disponibles.")
-
-       else:
+        else:
             st.error("No hay servicios asignados para generar la factura.")
-
     else:
         st.error("No se seleccionó un cliente válido.")
+
 
     #  "Ver Facturas" 
     if st.button("Ver Facturas"):
@@ -364,11 +372,6 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
             st.write("No hay facturas disponibles.")
 
 #---------------------------------------------------------------------
-
-
-                
-                
-
  
 if __name__ == "__main__":
     st.set_page_config(page_title="Asignación de Servicios", layout="wide")

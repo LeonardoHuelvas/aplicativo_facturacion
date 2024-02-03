@@ -400,14 +400,14 @@ def get_facturas_por_fecha(connection, inicio, fin):
             WHERE
                 a.fecha_asignacion BETWEEN %s AND %s
             """,
-            (inicio, fin),
+            (inicio, fin ),
         )
         facturas = cursor.fetchall()
         return facturas
     except Error as e:
         print(f"Error al obtener facturas por fecha: {e}")
         return []
-#--------------------
+#---------------------------------------------------------------------------------
 def obtener_siguiente_numero_factura(connection):
     try:
         cursor = connection.cursor()

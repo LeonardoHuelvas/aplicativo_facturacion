@@ -8,16 +8,6 @@ from database import *
 def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_por_id, obtener_cliente_por_nombre, obtener_total_factura, connection):
     obtener_detalle_cliente_por_id = st.text_input("Nombre o ID del cliente")
     if obtener_detalle_cliente_por_id == "":
-    
-        st.warning("Por favor, ingrese un nombre o ID de cliente.")
-
-        return
-    
-    inicio = st.date_input("Fecha de inicio", min_value=datetime(2020, 1, 1))
-    fin = st.date_input("Fecha de fin", min_value=datetime(2020, 1, 1))
-def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_por_id, obtener_cliente_por_nombre, obtener_total_factura, connection):
-    obtener_detalle_cliente_por_id = st.text_input("Nombre o ID del cliente")
-    if obtener_detalle_cliente_por_id == "":
         st.warning("Por favor, ingrese un nombre o ID de cliente.")
         return
     inicio = st.date_input("Fecha de inicio", min_value=datetime(2020, 1, 1))
@@ -27,7 +17,7 @@ def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_
         return
     if st.button("Buscar Facturas"):
         try:
-            facturas = get_facturas_por_fecha(connection, inicio, fin) # Aquí estás pasando los argumentos 'inicio' y 'fin'
+            facturas = get_facturas_por_fecha(connection, inicio, fin ) # Aquí estás pasando los argumentos 'inicio' y 'fin'
             if facturas:
                 mostrar_facturas(facturas, connection)
             else:
