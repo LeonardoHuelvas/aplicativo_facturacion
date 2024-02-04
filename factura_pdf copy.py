@@ -16,24 +16,18 @@ from database import (get_facturas, insertar_detalle_factura, insertar_factura, 
 # Configuración de la página de Streamlit
 st.set_page_config(page_title="Factura de Venta", layout="wide")
 
-
-def obtener_nombre_servicio(service_id, connection):
-    """Obtiene el nombre del servicio a partir de su ID."""
-    return obtener_nombre_servicio_por_id(service_id, connection)
-
 # Función para generar el PDF usando ReportLab
 def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection):
-    cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
     # Verificar y convertir fecha_factura a un objeto datetime si es necesario
     if isinstance(fecha_factura, int):
         fecha_factura = datetime.fromtimestamp(fecha_factura)
-        
+
     # Cargar la fecha actual
     fecha_factura = date.today()
 
     # Configuración inicial del documento PDF
-    file_name = f"factura-{cliente_info.replace(' ', '_')}-{fecha_factura.strftime('%Y%m%d')}.pdf"
-    document = SimpleDocTemplate(file_name, pagesize=A4)
+    file_name = f"factura-{cliente_id}-{fecha_factura.strftime('%Y%m%d')}.pdf"
+    document = SimpleDocTemplate(file_name, pagesize=letter)
     story = []
     styles = getSampleStyleSheet()
 
@@ -62,7 +56,7 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
     encabezados = [('Descripción de los Servicios', 'Cantidad', 'Precio')]
     # Suponiendo que la estructura de cada tupla sea:
 # (id_servicio, cantidad, precio)
-    servicios_data = [encabezados[0]] + [(obtener_nombre_servicio(s[1], connection), s[2], f"${s[3]:,.2f}") for s in servicios_asignados]
+    servicios_data = [encabezados[0]] + [(obtener_nombre_servicio_por_id(s[1], connection), s[2], f"${s[3]:,.2f}") for s in servicios_asignados]
 
 
     t = Table(servicios_data, colWidths=[3*inch, inch, 2*inch])
@@ -99,15 +93,14 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
     document.build(story)
     return file_name
 
-
+# Función para mostrar la previsualización de la factura
 def mostrar_previsualizacion(connection):
-    """Muestra una previsualización de la factura en la interfaz de usuario."""    
     datos = st.session_state.get('previsualizacion_datos', {})
     if datos:
         st.subheader("Previsualización de la Factura")
         st.write(f"Cliente: {datos['nombre_cliente']}")
         for servicio in datos['servicios_asignados']:
-            nombre_servicio = obtener_nombre_servicio(servicio[1], connection)# servicio[0] es id_servicio
+            nombre_servicio = obtener_nombre_servicio_por_id(servicio[1], connection)# servicio[0] es id_servicio
             cantidad_servicio = servicio[2]  # servicio[1] es cantidad
             precio_servicio = servicio[3]  # servicio[2] es precio
             st.write(f"Servicio: {nombre_servicio} - Cantidad: {cantidad_servicio} - Precio: {precio_servicio}")
@@ -129,7 +122,7 @@ def mostrar_factura_pdf(pdf_file, servicios_asignados, connection):
            id_servicio = servicio[1]
            cantidad = servicio[2]
            precio = servicio[3]
-           nombre_servicio = obtener_nombre_servicio(id_servicio, connection)
+           nombre_servicio = obtener_nombre_servicio_por_id(id_servicio, connection)
            st.write(f"Nombre: {nombre_servicio} - Cantidad: {cantidad} - Precio: {precio}")
           
 def generar_factura_final():
@@ -225,7 +218,6 @@ def run():
             else:
                 st.error("El cliente no existe. Por favor, verifica el nombre.")
 
-
+# Llamada a la función principal
 if __name__ == "__main__":
-    """ Llamada a la función principal"""
     run()

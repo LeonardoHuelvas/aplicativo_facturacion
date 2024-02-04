@@ -314,8 +314,8 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
     if not clientes:
         st.error("No hay clientes disponibles, por favor, registra cliente antes de continuar")
         return 
-    
-    nombres_clientes = [""] + [cliente['nombre'] for cliente in clientes]  # Añade un elemento vacío al principio
+    # Añade un elemento vacío al principio
+    nombres_clientes = [""] + [cliente['nombre'] for cliente in clientes]  
     nombre_cliente_seleccionado = st.selectbox("Seleccionar Cliente", nombres_clientes)
     
     if nombre_cliente_seleccionado == "":

@@ -3,8 +3,6 @@ La tabla pagos: id_factura, fecha_pago, monto, metodo_pago.
  
 Tabla servicios: nombre, descripcion,  precio. 
  
-tabla clientes: nombre, direccion,  email, fecha_registro 
- 
 secuencia_facturas: prefijo, numero_factura, incremento, fecha_Actualizacion
  
 detalle_factura contiene id, factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento
@@ -14,3 +12,5 @@ la tabla facturas: id,factura_id, servicio_id, cantidad, precio, total, cliente_
 asignaciones_servicios: id, cliente_id, servicio_id, fecha_asignacion, cantidad, precio
  
 secuencia_facturas id, prefijo, numero_actual, incremento, fecha_actualizacion
+
+clientes: nombre, direccion,  email, fecha_registro 

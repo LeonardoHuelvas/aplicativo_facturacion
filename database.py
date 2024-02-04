@@ -380,33 +380,40 @@ def factura_ya_existe(cliente_id, numero_factura, connection):
         print(f"Error al verificar si la factura existe: {e}")
         return False  # En caso de error, asumimos que la factura no existe para evitar duplicados
 #......................................................................
-def get_facturas_por_fecha(connection, inicio, fin):
-    try:
-        cursor = connection.cursor()
-        cursor.execute(
-            """
-            SELECT
-                f.factura_id,
-                f.cliente_id,
-                f.total,
-                f.descuento,
-                a.fecha_asignacion
-            FROM
-                facturas f
-            INNER JOIN
-                detalle_factura d ON f.factura_id = d.factura_id
-            INNER JOIN
-                asignaciones_servicios a ON d.servicio_id = a.servicio_id AND f.cliente_id = a.cliente_id
-            WHERE
-                a.fecha_asignacion BETWEEN %s AND %s
-            """,
-            (inicio, fin ),
-        )
-        facturas = cursor.fetchall()
-        return facturas
-    except Error as e:
-        print(f"Error al obtener facturas por fecha: {e}")
-        return []
+def get_facturas_por_fecha(connection, inicio, fin, cliente_input):
+    cursor = connection.cursor()
+    query = """
+        SELECT
+            f.factura_id AS "ID Factura",
+            f.cliente_id AS "ID Cliente",
+            c.nombre AS "Nombre Cliente",
+            df.servicio_id AS "ID Servicio",
+            s.nombre AS "Nombre Servicio",
+            df.cantidad,
+            df.precio,
+            df.total,
+            f.descuento,
+            a.fecha_asignacion AS "Fecha Asignación"
+        FROM facturas f
+        INNER JOIN detalle_factura df ON f.factura_id = df.factura_id
+        INNER JOIN asignaciones_servicios a ON f.cliente_id = a.cliente_id AND df.servicio_id = a.servicio_id
+        INNER JOIN servicios s ON df.servicio_id = s.id
+        INNER JOIN clientes c ON f.cliente_id = c.id
+        WHERE a.fecha_asignacion BETWEEN %s AND %s
+    """
+    params = [inicio, fin]
+
+    # Verifica si el cliente_input es un ID numérico o un nombre
+    if cliente_input.isdigit():
+        query += " AND f.cliente_id = %s"
+        params.append(int(cliente_input))
+    else:
+        query += " AND c.nombre = %s"
+        params.append(cliente_input)
+
+    cursor.execute(query, tuple(params))
+    return cursor.fetchall()
+
 #---------------------------------------------------------------------------------
 def obtener_siguiente_numero_factura(connection):
     try:
