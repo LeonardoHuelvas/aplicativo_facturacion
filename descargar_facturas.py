@@ -15,6 +15,7 @@ def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_
     
     inicio = st.date_input("Fecha de inicio", min_value=datetime(2020, 1, 1))
     fin = st.date_input("Fecha de fin", min_value=datetime(2020, 1, 1))
+    factura_id = get_facturas(connection)
     
     if inicio > fin:
         st.error("La fecha de inicio debe ser anterior a la fecha de fin.")
@@ -22,7 +23,7 @@ def interfaz_descargar_facturas(get_facturas_por_fecha, obtener_detalle_cliente_
     
     if st.button("Buscar Facturas"):
         try:
-            facturas = get_facturas_por_fecha(connection, inicio, fin, cliente_input)
+            facturas = get_facturas_por_fecha(connection, inicio, fin, factura_id, cliente_input)
             if facturas:
                 mostrar_facturas(facturas, connection)
                 # Suponiendo que `mostrar_facturas` proporciona la ruta del PDF

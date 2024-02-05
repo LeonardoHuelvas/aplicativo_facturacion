@@ -22,7 +22,8 @@ def obtener_nombre_servicio(service_id, connection):
     return obtener_nombre_servicio_por_id(service_id, connection)
 
 # Función para generar el PDF usando ReportLab
-def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection):
+def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, factura_id, connection):
+ 
     cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
     # Verificar y convertir fecha_factura a un objeto datetime si es necesario
     if isinstance(fecha_factura, int):
@@ -52,6 +53,12 @@ def generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, d
     style = styles['Normal']
     story.append(Paragraph(f"Fecha: {fecha_factura.strftime('%d/%m/%Y')}", style))
     story.append(Spacer(1, 12))
+    
+    # Añadir el número de factura
+    style = styles['Normal']
+    story.append(Paragraph(f"Número de Factura: {factura_id}", style))
+    story.append(Spacer(1, 12))
+
 
     # Añadir la información del cliente
     cliente_info = obtener_nombre_cliente_por_id(cliente_id, connection)
@@ -132,6 +139,7 @@ def mostrar_factura_pdf(pdf_file, servicios_asignados, connection):
            nombre_servicio = obtener_nombre_servicio(id_servicio, connection)
            st.write(f"Nombre: {nombre_servicio} - Cantidad: {cantidad} - Precio: {precio}")
           
+# ...
 def generar_factura_final():
     datos = st.session_state.get('previsualizacion_datos', {})
     if datos:
@@ -140,21 +148,28 @@ def generar_factura_final():
         servicios_asignados = datos['servicios_asignados']
         total = datos['total']
         descuento = datos['descuento']
-        factura_id = insertar_factura(cliente_id, total, descuento, connection)  # Add this line to get the factura_id
-
+        
+        factura_id = insertar_factura(cliente_id, total, descuento, connection) 
+        fecha_factura =  datos['fecha_factura']
+        
         if factura_id:
-            connection = create_server_connection("localhost", "root", "123", "lucmonet")
+            # No necesitas crear otra conexión aquí, ya tienes 'connection'
             for servicio in servicios_asignados:
+                # Pasa 'connection' como argumento adicional
                 insertar_detalle_factura(factura_id, servicio[1], servicio[2], servicio[3], total, cliente_id, descuento, connection)
 
+
             # Generar y mostrar el PDF de la factura
-            pdf_file = generar_factura_pdf(cliente_id, servicios_asignados, factura_id, total, descuento, connection)  # Pass factura_id to the function
+            pdf_file = generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, factura_id, connection)
+
+  # Pass factura_id to the function
             mostrar_factura_pdf(pdf_file, servicios_asignados, connection)
             st.success("Factura generada y guardada con éxito.")
         else:
             st.error("Error al insertar factura en la base de datos.")
     else:
         st.error("Datos de previsualización no están disponibles.")
+
             
 
 
@@ -220,7 +235,8 @@ def run():
             if cliente:
                 items = [{"Servicio": servicio, "Cantidad": cantidad, "Precio": precio}]
                 total = sum(item["Cantidad"] * item["Precio"] for item in items)
-                pdf_file = generar_factura_pdf(cliente['id'], items, str(date_invoice), total, descuento, connection)
+                pdf_file = generar_factura_pdf(cliente_id, servicios_asignados, fecha_factura, total, descuento, connection, factura_id)
+
                 mostrar_factura_pdf(pdf_file, servicio_asignados_cliente)
             else:
                 st.error("El cliente no existe. Por favor, verifica el nombre.")

@@ -348,6 +348,7 @@ def mostrar_interfaz_asignacion_servicios(st, connection):
                 }
                 mostrar_previsualizacion(connection)  # Asegúrate de que esta función está definida en factura_pdf.py
 
+            
             if st.button("Confirmar y Generar Factura"):
                 if 'previsualizacion_datos' in st.session_state:
                     generar_factura_final()  # Asegúrate de que esta función está definida en factura_pdf.py

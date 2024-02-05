@@ -293,6 +293,8 @@ def obtener_nombre_servicio_por_id(servicio_id, connection):
     print(f"Error al obtener el nombre del servicio: {e}")
     return None
 # ................................................................................................
+from datetime import date
+
 def insertar_factura(cliente_id, total, descuento, connection):
     # Obtener el siguiente número de factura
     nuevo_numero_actual_formato, nuevo_numero_actual_sin_formato = obtener_siguiente_numero_actual(connection)
@@ -306,9 +308,12 @@ def insertar_factura(cliente_id, total, descuento, connection):
                 print(f"Ya existe una factura con el número {nuevo_numero_actual_formato} para este cliente.")
                 return None
 
-            # Si no existe, insertar la nueva factura
-            query = "INSERT INTO facturas (factura_id, cliente_id, total, descuento) VALUES (%s, %s, %s, %s)"
-            cursor.execute(query, (nuevo_numero_actual_sin_formato, cliente_id, total, descuento))
+            # Obtener la fecha actual
+            fecha_actual = date.today()
+
+            # Si no existe, insertar la nueva factura con la fecha actual
+            query = "INSERT INTO facturas (factura_id, cliente_id, total, descuento, fecha_factura) VALUES (%s, %s, %s, %s, %s)"
+            cursor.execute(query, (nuevo_numero_actual_sin_formato, cliente_id, total, descuento, fecha_actual))
             connection.commit()
 
             # Actualizar la secuencia de facturas
@@ -322,12 +327,18 @@ def insertar_factura(cliente_id, total, descuento, connection):
         return None
 
 
+
 # ................................................................................................ 
 def insertar_detalle_factura(factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento, connection):
     try:
         cursor = connection.cursor()
-        query = "INSERT INTO detalle_factura (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento) VALUES (%s, %s, %s, %s, %s, %s, %s)"
-        cursor.execute(query, (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento))
+
+        # Obtener la fecha actual
+        fecha_actual = date.today()
+
+        # Modificar la consulta SQL para incluir la fecha_factura
+        query = "INSERT INTO detalle_factura (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento, fecha_factura) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+        cursor.execute(query, (factura_id, servicio_id, cantidad, precio, total, cliente_id, descuento, fecha_actual))
         connection.commit()
     except Error as e:
         print(f"Error al insertar detalle de factura: {e}")
@@ -380,7 +391,7 @@ def factura_ya_existe(cliente_id, numero_factura, connection):
         print(f"Error al verificar si la factura existe: {e}")
         return False  # En caso de error, asumimos que la factura no existe para evitar duplicados
 #......................................................................
-def get_facturas_por_fecha(connection, inicio, fin, cliente_input):
+def get_facturas_por_fecha(connection, inicio, fin, factura_id, cliente_input):
     cursor = connection.cursor()
     query = """
         SELECT
@@ -401,7 +412,7 @@ def get_facturas_por_fecha(connection, inicio, fin, cliente_input):
         INNER JOIN clientes c ON f.cliente_id = c.id
         WHERE a.fecha_asignacion BETWEEN %s AND %s
     """
-    params = [inicio, fin]
+    params = [inicio, fin, factura_id]
 
     # Verifica si el cliente_input es un ID numérico o un nombre
     if cliente_input.isdigit():
@@ -438,3 +449,6 @@ def obtener_siguiente_numero_factura(connection):
         print(f"Error al obtener el siguiente número de factura: {e}")
         connection.rollback()  # En caso de error, deshace la transacción
         return None, None
+    
+    #---------------- implementacion para la vista de la factura---------------
+    
